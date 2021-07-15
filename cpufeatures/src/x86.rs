@@ -12,18 +12,7 @@
 #[doc(hidden)]
 macro_rules! __unless_target_features {
     ($($tf:tt),+ => $body:expr ) => {{
-        #[cfg(not(all($(target_feature=$tf,)*)))]
-        {
-            #[cfg(not(target_env = "sgx"))]
-            $body
-
-            // CPUID is not available on SGX targets
-            #[cfg(target_env = "sgx")]
-            false
-        }
-
-        #[cfg(all($(target_feature=$tf,)*))]
-        true
+        cfg!((all($(target_feature=$tf,)*)))
     }};
 }
 
