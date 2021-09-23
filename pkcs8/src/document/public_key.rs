@@ -12,7 +12,15 @@ use der::Encodable;
 use std::{fs, path::Path, str};
 
 #[cfg(feature = "pem")]
-use {crate::pem, alloc::string::String, core::str::FromStr};
+use {
+    crate::{pem, LineEnding},
+    alloc::string::String,
+    core::str::FromStr,
+};
+
+/// Type label for PEM-encoded private keys.
+#[cfg(feature = "pem")]
+pub(crate) const PEM_TYPE_LABEL: &str = "PUBLIC KEY";
 
 /// SPKI public key document.
 ///
@@ -29,12 +37,12 @@ impl PublicKeyDocument {
         SubjectPublicKeyInfo::try_from(self.0.as_slice()).expect("malformed PublicKeyDocument")
     }
 
-    /// Parse [`PublicKeyDocument`] from ASN.1 DER
+    /// Parse [`PublicKeyDocument`] from ASN.1 DER.
     pub fn from_der(bytes: &[u8]) -> Result<Self> {
         bytes.try_into()
     }
 
-    /// Parse [`PublicKeyDocument`] from PEM
+    /// Parse [`PublicKeyDocument`] from PEM.
     ///
     /// PEM-encoded public keys can be identified by the leading delimiter:
     ///
@@ -44,15 +52,28 @@ impl PublicKeyDocument {
     #[cfg(feature = "pem")]
     #[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
     pub fn from_pem(s: &str) -> Result<Self> {
-        let der_bytes = pem::decode(s, pem::PUBLIC_KEY_BOUNDARY)?;
+        let (label, der_bytes) = pem::decode_vec(s.as_bytes())?;
+
+        if label != PEM_TYPE_LABEL {
+            return Err(pem::Error::Label.into());
+        }
+
         Self::from_der(&*der_bytes)
     }
 
-    /// Serialize [`PublicKeyDocument`] as PEM-encoded PKCS#8 string.
+    /// Serialize [`PublicKeyDocument`] as PEM-encoded PKCS#8 (SPKI) string.
     #[cfg(feature = "pem")]
     #[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
     pub fn to_pem(&self) -> String {
-        pem::encode(&self.0, pem::PUBLIC_KEY_BOUNDARY)
+        self.to_pem_with_le(LineEnding::default())
+    }
+
+    /// Serialize [`PublicKeyDocument`] as PEM-encoded PKCS#8 (SPKI) string
+    /// with the given [`LineEnding`].
+    #[cfg(feature = "pem")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
+    pub fn to_pem_with_le(&self, line_ending: LineEnding) -> String {
+        pem::encode_string(PEM_TYPE_LABEL, line_ending, &self.0).expect(error::PEM_ENCODING_MSG)
     }
 
     /// Load [`PublicKeyDocument`] from an ASN.1 DER-encoded file on the local

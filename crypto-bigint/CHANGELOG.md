@@ -4,7 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## 0.2.2 (2021-06-26)
+## 0.2.4 (2021-08-23)
+### Added
+- Expose `limb` module ([#584])
+- `[limb::Inner; LIMBS]` conversions for `UInt` ([#585])
+- Bitwise right shift support for `UInt` ([#586], [#590])
+
+[#584]: https://github.com/RustCrypto/utils/pull/584
+[#585]: https://github.com/RustCrypto/utils/pull/585
+[#586]: https://github.com/RustCrypto/utils/pull/586
+[#590]: https://github.com/RustCrypto/utils/pull/590
+
+## 0.2.3 (2021-08-16)
+### Fixed
+- `UInt::wrapping_mul` ([#563])
+
+### Added
+- Implement the `Hash` trait for `UInt` and `Limb` ([#579])
+
+[#563]: https://github.com/RustCrypto/utils/pull/563
+[#579]: https://github.com/RustCrypto/utils/pull/579
+
+## 0.2.2 (2021-06-26) [YANKED]
 ### Added
 - `Limb::is_odd` and `UInt::is_odd` ([#505])
 - `UInt::new` ([#506])
@@ -20,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#507]: https://github.com/RustCrypto/utils/pull/507
 [#508]: https://github.com/RustCrypto/utils/pull/508
 
-## 0.2.1 (2021-06-21)
+## 0.2.1 (2021-06-21) [YANKED]
 ### Added
 - `Limb` newtype ([#499])
 - Target-specific rustdocs ([#500])

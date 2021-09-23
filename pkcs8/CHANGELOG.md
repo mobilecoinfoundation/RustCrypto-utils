@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.5 (2021-07-26)
+### Added
+- Support for customizing PEM `LineEnding` ([#554])
+
+### Changed
+- Bump `pem-rfc7468` dependency to v0.2 ([#552])
+
+[#552]: https://github.com/RustCrypto/utils/pull/552
+[#554]: https://github.com/RustCrypto/utils/pull/554
+
+## 0.7.4 (2021-07-25)
+### Added
+- PKCS#1 support ([#543])
+
+[#543]: https://github.com/RustCrypto/utils/pull/543
+
+## 0.7.3 (2021-07-24)
+### Changed
+- Use `pem-rfc7468` crate ([#530])
+
+[#530]: https://github.com/RustCrypto/utils/pull/530
+
+## 0.7.2 (2021-07-20)
+### Added
+- `Error::ParametersMalformed` variant ([#523])
+
+[#523]: https://github.com/RustCrypto/utils/pull/523
+
+## 0.7.1 (2021-07-20)
+### Added
+- `Error::KeyMalformed` variant ([#521])
+
+[#521]: https://github.com/RustCrypto/utils/pull/521
+
 ## 0.7.0 (2021-06-07)
 ### Added
 - ASN.1 error improvements ([#478])

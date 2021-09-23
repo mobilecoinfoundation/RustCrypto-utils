@@ -54,6 +54,11 @@
 //!   - Key derivation function: [scrypt] ([RFC 7914], also supports PBKDF2-HMAC-SHA256)
 //!   - Symmetric encryption: AES-128-CBC or AES-256-CBC (best available options for PKCS#5v2)
 //!
+//! # PKCS#1 support (optional)
+//! When the `pkcs1` feature of this crate is enabled, this crate provides
+//! a blanket impl of PKCS#8 support for types which impl the traits from the
+//! [`pkcs1`] crate (e.g. `FromRsaPrivateKey`, `ToRsaPrivateKey`).
+//!
 //! # Minimum Supported Rust Version
 //!
 //! This crate requires **Rust 1.51** at a minimum.
@@ -69,14 +74,13 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
-    html_root_url = "https://docs.rs/pkcs8/0.7.0"
+    html_root_url = "https://docs.rs/pkcs8/0.7.5"
 )]
 #![forbid(unsafe_code, clippy::unwrap_used)]
 #![warn(missing_docs, rust_2018_idioms, unused_qualifications)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
 #[cfg(feature = "std")]
 extern crate std;
 
@@ -92,9 +96,6 @@ mod document;
 #[cfg(feature = "pkcs5")]
 pub(crate) mod encrypted_private_key_info;
 
-#[cfg(feature = "pem")]
-mod pem;
-
 pub use crate::{
     attributes::Attributes,
     error::{Error, Result},
@@ -105,8 +106,21 @@ pub use crate::{
 pub use der::{self, asn1::ObjectIdentifier};
 pub use spki::{AlgorithmIdentifier, SubjectPublicKeyInfo};
 
+#[cfg(feature = "alloc")]
+pub use crate::{
+    document::{private_key::PrivateKeyDocument, public_key::PublicKeyDocument},
+    traits::{ToPrivateKey, ToPublicKey},
+};
+
+#[cfg(feature = "pem")]
+#[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
+pub use pem_rfc7468::LineEnding;
+
 #[cfg(feature = "pkcs5")]
 pub use encrypted_private_key_info::EncryptedPrivateKeyInfo;
+
+#[cfg(feature = "pkcs1")]
+pub use pkcs1;
 
 #[cfg(feature = "pkcs5")]
 pub use pkcs5;
@@ -114,8 +128,5 @@ pub use pkcs5;
 #[cfg(all(feature = "alloc", feature = "pkcs5"))]
 pub use crate::document::encrypted_private_key::EncryptedPrivateKeyDocument;
 
-#[cfg(feature = "alloc")]
-pub use crate::{
-    document::{private_key::PrivateKeyDocument, public_key::PublicKeyDocument},
-    traits::{ToPrivateKey, ToPublicKey},
-};
+#[cfg(feature = "pem")]
+use pem_rfc7468 as pem;

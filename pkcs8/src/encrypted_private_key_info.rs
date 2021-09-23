@@ -15,7 +15,14 @@ use crate::{EncryptedPrivateKeyDocument, PrivateKeyDocument};
 use core::convert::TryInto;
 
 #[cfg(feature = "pem")]
-use {crate::pem, zeroize::Zeroizing};
+use {
+    crate::{error, pem, LineEnding},
+    zeroize::Zeroizing,
+};
+
+/// Type label for PEM-encoded private keys.
+#[cfg(feature = "pem")]
+pub(crate) const PEM_TYPE_LABEL: &str = "ENCRYPTED PRIVATE KEY";
 
 /// PKCS#8 `EncryptedPrivateKeyInfo`.
 ///
@@ -70,10 +77,18 @@ impl<'a> EncryptedPrivateKeyInfo<'a> {
     #[cfg(feature = "pem")]
     #[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
     pub fn to_pem(&self) -> Zeroizing<alloc::string::String> {
-        Zeroizing::new(pem::encode(
-            self.to_der().as_ref(),
-            pem::ENCRYPTED_PRIVATE_KEY_BOUNDARY,
-        ))
+        self.to_pem_with_le(LineEnding::default())
+    }
+
+    /// Encode this [`EncryptedPrivateKeyInfo`] as PEM-encoded ASN.1 DER with
+    /// the given [`LineEnding`].
+    #[cfg(feature = "pem")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "pem")))]
+    pub fn to_pem_with_le(&self, line_ending: LineEnding) -> Zeroizing<alloc::string::String> {
+        Zeroizing::new(
+            pem::encode_string(PEM_TYPE_LABEL, line_ending, self.to_der().as_ref())
+                .expect(error::PEM_ENCODING_MSG),
+        )
     }
 }
 

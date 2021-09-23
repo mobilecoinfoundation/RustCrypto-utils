@@ -76,14 +76,13 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
-    html_root_url = "https://docs.rs/base64ct/1.0.0"
+    html_root_url = "https://docs.rs/base64ct/1.0.1"
 )]
 #![warn(missing_docs, rust_2018_idioms)]
 
 #[cfg(feature = "alloc")]
 #[macro_use]
 extern crate alloc;
-
 #[cfg(feature = "std")]
 extern crate std;
 

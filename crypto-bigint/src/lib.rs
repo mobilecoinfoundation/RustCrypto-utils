@@ -35,7 +35,7 @@
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
-    html_root_url = "https://docs.rs/crypto-bigint/0.2.2"
+    html_root_url = "https://docs.rs/crypto-bigint/0.2.4"
 )]
 #![forbid(unsafe_code, clippy::unwrap_used)]
 #![warn(missing_docs, rust_2018_idioms, unused_qualifications)]
@@ -46,13 +46,12 @@ extern crate alloc;
 #[macro_use]
 mod macros;
 
-mod limb;
-mod traits;
-mod uint;
-
 #[cfg(feature = "generic-array")]
 mod array;
 mod checked;
+pub mod limb;
+mod traits;
+mod uint;
 mod wrapping;
 
 pub use crate::{checked::Checked, limb::Limb, traits::*, uint::*, wrapping::Wrapping};
