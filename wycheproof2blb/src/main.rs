@@ -1,4 +1,9 @@
 //! Tool to convert Wycheproof test vectors to raw hex format
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
+    html_root_url = "https://docs.rs/wycheproof2blb/0.1.0"
+)]
 use std::io::Write;
 
 mod aead;
@@ -131,7 +136,7 @@ fn main() {
     }
 
     let mut out_file = std::fs::File::create(out_path).unwrap();
-    let blobs: Vec<Vec<u8>> = infos.into_iter().map(|info| info.data).flatten().collect();
+    let blobs: Vec<Vec<u8>> = infos.into_iter().flat_map(|info| info.data).collect();
     let (blb_data, _) = blobby::encode_blobs(&blobs);
     out_file.write_all(&blb_data).unwrap();
 }
