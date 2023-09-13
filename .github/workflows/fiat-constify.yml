@@ -1,0 +1,38 @@
+name: fiat-constify
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/fiat-constify.yml"
+      - "fiat-constify/**"
+      - "Cargo.*"
+  push:
+    branches: master
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: fiat-constify
+
+env:
+  CARGO_INCREMENTAL: 0
+  RUSTFLAGS: "-Dwarnings"
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        toolchain:
+          - 1.56.0 # MSRV
+          - stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - run: cargo test
+      - run: cargo test --all-features

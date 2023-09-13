@@ -2,8 +2,7 @@
 #![no_std]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_root_url = "https://docs.rs/dbl/0.3.2"
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg"
 )]
 #![forbid(unsafe_code)]
 
@@ -32,7 +31,7 @@ pub trait Dbl {
     #[must_use]
     fn dbl(self) -> Self;
 
-    /// Reverse double block. (alternatively: divbide block by x)
+    /// Reverse double block. (alternatively: divide block by x)
     ///
     /// If least significant bit of the block equals to zero will return
     /// `block>>1`, otherwise `(block>>1)^(1<<n)^(C>>1)`

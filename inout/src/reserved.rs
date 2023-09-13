@@ -28,11 +28,11 @@ impl<'a, T> InOutBufReserved<'a, 'a, T> {
         if msg_len > buf.len() {
             return Err(OutIsTooSmallError);
         }
-        let out_ptr = buf.as_mut_ptr();
+        let p = buf.as_mut_ptr();
         let out_len = buf.len();
         Ok(Self {
-            in_ptr: out_ptr as *const T,
-            out_ptr,
+            in_ptr: p,
+            out_ptr: p,
             in_len: msg_len,
             out_len,
             _pd: PhantomData,
@@ -202,6 +202,7 @@ impl<'inp, 'out, BS: ArrayLength<u8>> PaddedInOutBuf<'inp, 'out, BS> {
     ///
     /// For paddings with `P::TYPE = PadType::Reversible` it always returns `Some`.
     #[inline(always)]
+    #[allow(clippy::needless_option_as_deref)]
     pub fn get_tail_block<'a>(&'a mut self) -> Option<InOut<'a, 'a, GenericArray<u8, BS>>> {
         match self.tail_out.as_deref_mut() {
             Some(out_block) => Some((&self.tail_in, out_block).into()),

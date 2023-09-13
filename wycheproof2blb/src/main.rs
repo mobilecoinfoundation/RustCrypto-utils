@@ -1,8 +1,7 @@
 //! Tool to convert Wycheproof test vectors to raw hex format
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
-    html_root_url = "https://docs.rs/wycheproof2blb/0.1.0"
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg"
 )]
 use std::io::Write;
 
@@ -113,6 +112,10 @@ fn main() {
             file: "eddsa_test.json",
             generator: ed25519::generator,
         },
+        "secp224r1" => Algorithm {
+            file: "ecdsa_secp224r1_sha224_test.json",
+            generator: ecdsa::generator,
+        },
         "secp256r1" => Algorithm {
             file: "ecdsa_secp256r1_sha256_test.json",
             generator: ecdsa::generator,
@@ -120,6 +123,10 @@ fn main() {
         // There's also "ecdsa_secp256r1_sha256_p1363_test.json" with a different signature encoding.
         "secp256k1" => Algorithm {
             file: "ecdsa_secp256k1_sha256_test.json",
+            generator: ecdsa::generator,
+        },
+        "secp384r1" => Algorithm {
+            file: "ecdsa_secp384r1_sha384_test.json",
             generator: ecdsa::generator,
         },
         _ => panic!("Unrecognized algorithm '{}'", algorithm),

@@ -6,146 +6,131 @@
 )]
 #![warn(missing_docs, rust_2018_idioms, unused_qualifications)]
 
-#[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
-use core::arch::asm;
-
-/// Move if zero.
-///
-/// Uses a `test` instruction to check if the given `condition` value is
-/// equal to zero, then calls `cmovz` (a.k.a. `cmove`) to conditionally move
-/// `src` to `dst` when `condition` is equal to zero.
+#[cfg(not(miri))]
+#[cfg(target_arch = "aarch64")]
+mod aarch64;
+#[cfg(any(
+    not(any(target_arch = "aarch64", target_arch = "x86", target_arch = "x86_64")),
+    miri
+))]
+mod portable;
+#[cfg(not(miri))]
 #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-pub fn cmovz(condition: usize, src: usize, dst: &mut usize) {
-    unsafe {
-        asm! {
-            "test {0}, {0}",
-            "cmovz {1}, {2}",
-            in(reg) condition,
-            inlateout(reg) *dst,
-            in(reg) src,
-            options(pure, nomem, nostack),
-        };
+mod x86;
+
+/// Condition
+pub type Condition = u8;
+
+/// Conditional move
+pub trait Cmov {
+    /// Move if non-zero.
+    ///
+    /// Uses a `test` instruction to check if the given `condition` value is
+    /// equal to zero, conditionally moves `value` to `self` when `condition` is
+    /// equal to zero.
+    fn cmovnz(&mut self, value: &Self, condition: Condition);
+
+    /// Move if zero.
+    ///
+    /// Uses a `cmp` instruction to check if the given `condition` value is
+    /// equal to zero, and if so, conditionally moves `value` to `self`
+    /// when `condition` is equal to zero.
+    fn cmovz(&mut self, value: &Self, condition: Condition) {
+        self.cmovnz(value, !condition)
     }
 }
 
-/// Move if zero.
-///
-/// Uses a `cmp` instruction to check if the given `condition` value is
-/// equal to zero, then calls `csel` to conditionally move
-/// `src` to `dst` when `condition` is equal to zero.
-#[cfg(any(target_arch = "aarch64"))]
-#[inline(always)]
-pub fn cmovz(condition: usize, src: usize, dst: &mut usize) {
-    unsafe {
-        asm! {
-            "cmp {0}, 0",
-            "csel {1}, {2}, {3}, EQ",
-            in(reg) condition,
-            inlateout(reg) *dst,
-            in(reg) src,
-            in(reg) *dst,
-            options(pure, nomem, nostack),
-        };
+/// Conditional move with equality comparison
+pub trait CmovEq {
+    /// Move if both inputs are equal.
+    ///
+    /// Uses a `xor` instruction to compare the two values, and
+    /// conditionally moves `input` to `output` when they are equal.
+    fn cmoveq(&self, rhs: &Self, input: Condition, output: &mut Condition);
+
+    /// Move if both inputs are not equal.
+    ///
+    /// Uses a `xor` instruction to compare the two values, and
+    /// conditionally moves `input` to `output` when they are not equal.
+    fn cmovne(&self, rhs: &Self, input: Condition, output: &mut Condition) {
+        let mut tmp = 1u8;
+        self.cmoveq(rhs, 0u8, &mut tmp);
+        tmp.cmoveq(&1u8, input, output);
     }
 }
 
-/// Move if not zero.
-///
-/// Uses a `cmp` instruction to check if the given `condition` value is not
-/// equal to zero, then calls `csel` to conditionally move
-/// `src` to `dst` when `condition` is nonzero.
-#[cfg(any(target_arch = "aarch64"))]
-#[inline(always)]
-pub fn cmovnz(condition: usize, src: usize, dst: &mut usize) {
-    unsafe {
-        asm! {
-            "cmp {0}, 0",
-            "csel {1}, {2}, {3}, NE",
-            in(reg) condition,
-            inlateout(reg) *dst,
-            in(reg) src,
-            in(reg) *dst,
-            options(pure, nomem, nostack),
-        };
+impl Cmov for u8 {
+    #[inline(always)]
+    fn cmovnz(&mut self, value: &Self, condition: Condition) {
+        let mut tmp = *self as u16;
+        tmp.cmovnz(&(*value as u16), condition);
+        *self = tmp as u8;
+    }
+
+    #[inline(always)]
+    fn cmovz(&mut self, value: &Self, condition: Condition) {
+        let mut tmp = *self as u16;
+        tmp.cmovz(&(*value as u16), condition);
+        *self = tmp as u8;
     }
 }
 
-/// Move if not zero.
-///
-/// Uses a `test` instruction to check if the given `condition` value is not
-/// equal to zero, then calls `cmovnz` (a.k.a. `cmovne`) to conditionally move
-/// `src` to `dst` when `condition` is nonzero.
-#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
-#[inline(always)]
-pub fn cmovnz(condition: usize, src: usize, dst: &mut usize) {
-    unsafe {
-        asm! {
-            "test {0}, {0}",
-            "cmovnz {1}, {2}",
-            in(reg) condition,
-            inlateout(reg) *dst,
-            in(reg) src,
-            options(pure, nomem, nostack),
-        };
+impl CmovEq for u8 {
+    #[inline(always)]
+    fn cmoveq(&self, rhs: &Self, input: Condition, output: &mut Condition) {
+        (*self as u16).cmoveq(&(*rhs as u16), input, output);
+    }
+
+    #[inline(always)]
+    fn cmovne(&self, rhs: &Self, input: Condition, output: &mut Condition) {
+        (*self as u16).cmovne(&(*rhs as u16), input, output);
     }
 }
 
-/// Move if zero (portable fallback implementation).
-///
-/// This implementation is based on portable bitwise arithmetic but cannot
-/// guarantee that the resulting generated assembly is free of branch
-/// instructions.
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
-#[inline(never)]
-pub fn cmovz(condition: usize, src: usize, dst: &mut usize) {
-    let mask = (1 ^ is_non_zero(condition)).wrapping_sub(1);
-    *dst = (*dst & mask) | (src & !mask);
-}
+impl Cmov for u128 {
+    #[inline(always)]
+    fn cmovnz(&mut self, value: &Self, condition: Condition) {
+        let mut lo = (*self & u64::MAX as u128) as u64;
+        let mut hi = (*self >> 64) as u64;
 
-/// Move if not zero (portable fallback implementation).
-///
-/// This implementation is based on portable bitwise arithmetic but cannot
-/// guarantee that the resulting generated assembly is free of branch
-/// instructions.
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
-#[inline(never)]
-pub fn cmovnz(condition: usize, src: usize, dst: &mut usize) {
-    let mask = is_non_zero(condition).wrapping_sub(1);
-    *dst = (*dst & mask) | (src & !mask);
-}
+        lo.cmovnz(&((*value & u64::MAX as u128) as u64), condition);
+        hi.cmovnz(&((*value >> 64) as u64), condition);
 
-/// Check if the given condition value is non-zero
-///
-/// # Returns
-/// - `condition` is zero: `0`
-/// - `condition` is non-zero: `1`
-#[cfg(not(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64")))]
-#[inline(always)]
-fn is_non_zero(condition: usize) -> usize {
-    const SHIFT_BITS: usize = core::mem::size_of::<usize>() - 1;
-    ((condition | (!condition).wrapping_add(1)) >> SHIFT_BITS) & 1
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cmovz_works() {
-        let mut n = 24;
-        cmovz(42, 42, &mut n);
-        assert_eq!(n, 24);
-        cmovz(0, 42, &mut n);
-        assert_eq!(n, 42);
+        *self = (lo as u128) | (hi as u128) << 64;
     }
 
-    #[test]
-    fn cmovnz_works() {
-        let mut n = 24;
-        cmovnz(0, 42, &mut n);
-        assert_eq!(n, 24);
-        cmovnz(42, 42, &mut n);
-        assert_eq!(n, 42);
+    #[inline(always)]
+    fn cmovz(&mut self, value: &Self, condition: Condition) {
+        let mut lo = (*self & u64::MAX as u128) as u64;
+        let mut hi = (*self >> 64) as u64;
+
+        lo.cmovz(&((*value & u64::MAX as u128) as u64), condition);
+        hi.cmovz(&((*value >> 64) as u64), condition);
+
+        *self = (lo as u128) | (hi as u128) << 64;
+    }
+}
+
+impl CmovEq for u128 {
+    #[inline(always)]
+    fn cmovne(&self, rhs: &Self, input: Condition, output: &mut Condition) {
+        let lo = (*self & u64::MAX as u128) as u64;
+        let hi = (*self >> 64) as u64;
+
+        let mut tmp = 1u8;
+        lo.cmovne(&((*rhs & u64::MAX as u128) as u64), 0, &mut tmp);
+        hi.cmovne(&((*rhs >> 64) as u64), 0, &mut tmp);
+        tmp.cmoveq(&0, input, output);
+    }
+
+    #[inline(always)]
+    fn cmoveq(&self, rhs: &Self, input: Condition, output: &mut Condition) {
+        let lo = (*self & u64::MAX as u128) as u64;
+        let hi = (*self >> 64) as u64;
+
+        let mut tmp = 1u8;
+        lo.cmovne(&((*rhs & u64::MAX as u128) as u64), 0, &mut tmp);
+        hi.cmovne(&((*rhs >> 64) as u64), 0, &mut tmp);
+        tmp.cmoveq(&1, input, output);
     }
 }
