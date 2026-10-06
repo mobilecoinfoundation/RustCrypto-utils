@@ -35,7 +35,7 @@ version = "0.0.2"
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.9"
+version = "0.3.1"
 dependencies = [
  "libc",
 ]
@@ -115,9 +115,9 @@ checksum = "62b02a5381cc465bd3041d84623d0fa3b66738b52b8e2fc3bab8ad63ab032f4a"
 
 [[package]]
 name = "libc"
-version = "0.2.147"
+version = "0.2.190"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4668fb0ea861c1df094127ac5f1da3409a82116a4ba74fca2e58ef927159bb3"
+checksum = "ce5d3ddc6d3fa000eb1536d85e147bfe31aacaba692ed6a876f95cb7c855be78"
 
 [[package]]
 name = "opaque-debug"
