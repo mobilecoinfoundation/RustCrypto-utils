@@ -15,3 +15,11 @@ fn init_get() {
     let (token, val) = cpuid::init_get();
     assert_eq!(val, token.get());
 }
+
+#[test]
+fn runtime_detection_is_disabled() {
+    let detected = cpufeatures::__unless_target_features! {
+        "avx512f" => panic!("runtime detection must not run")
+    };
+    assert_eq!(detected, cfg!(target_feature = "avx512f"));
+}

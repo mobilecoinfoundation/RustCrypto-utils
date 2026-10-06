@@ -1,30 +1,19 @@
 //! x86/x86-64 CPU feature detection support.
 //!
-//! Portable, `no_std`-friendly implementation that relies on the x86 `CPUID`
-//! instruction for feature detection.
+//! `MobileCoin`'s SGX enclaves use a Linux target triple, but cannot execute the
+//! x86 `CPUID` instruction. Consequently, this fork relies exclusively on
+//! compile-time target features.
 
 /// Evaluate the given `$body` expression any of the supplied target features
 /// are not enabled. Otherwise returns true.
 ///
-/// The `$body` expression is not evaluated on SGX targets, and returns false
-/// on these targets unless *all* supplied target features are enabled.
+/// The `$body` expression is never evaluated. Returns whether all supplied
+/// target features were enabled at compile time.
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __unless_target_features {
     ($($tf:tt),+ => $body:expr ) => {{
-        #[cfg(not(all($(target_feature=$tf,)*)))]
-        {
-            #[cfg(not(any(target_env = "sgx", target_os = "none", target_os = "uefi")))]
-            $body
-
-            // CPUID is not available on SGX. Freestanding and UEFI targets
-            // do not support SIMD features with default compilation flags.
-            #[cfg(any(target_env = "sgx", target_os = "none", target_os = "uefi"))]
-            false
-        }
-
-        #[cfg(all($(target_feature=$tf,)*))]
-        true
+        cfg!(all($(target_feature=$tf,)*))
     }};
 }
 
