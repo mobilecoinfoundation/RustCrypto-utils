@@ -1,6 +1,6 @@
+use crate::TestInfo;
 use crate::wycheproof;
 use crate::wycheproof::{case_result, description, hex_string};
-use crate::TestInfo;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -13,10 +13,13 @@ struct TestSuite {
 
 #[derive(Debug, Deserialize)]
 struct TestGroup {
+    #[allow(dead_code)]
     #[serde(flatten)]
     pub group: wycheproof::Group,
+    #[allow(dead_code)]
     #[serde(rename = "keyDer")]
     pub key_der: String,
+    #[allow(dead_code)]
     #[serde(rename = "keyPem")]
     pub key_pem: String,
     pub sha: String,
@@ -27,6 +30,7 @@ struct TestGroup {
 #[derive(Debug, Deserialize)]
 struct TestKey {
     curve: String,
+    #[allow(dead_code)]
     #[serde(rename = "type")]
     key_type: String,
     #[serde(with = "hex_string")]
@@ -50,10 +54,13 @@ pub fn generator(data: &[u8], algorithm: &str, _key_size: u32) -> Vec<TestInfo> 
 
     let mut infos = vec![];
     for g in &suite.test_groups {
-        assert_eq!(g.key.curve, algorithm);
-        assert_eq!(g.sha, "SHA-256");
+        assert!(algorithm.starts_with(&g.key.curve));
+        assert!(matches!(
+            g.sha.as_str(),
+            "SHA-224" | "SHA-256" | "SHA-384" | "SHA-512"
+        ));
         for tc in &g.tests {
-            if tc.case.result == crate::wycheproof::CaseResult::Acceptable {
+            if tc.case.result == wycheproof::CaseResult::Acceptable {
                 // TODO: figure out what to do with test cases that pass but which have weak params
                 continue;
             }

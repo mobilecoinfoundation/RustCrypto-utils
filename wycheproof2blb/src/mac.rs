@@ -1,6 +1,6 @@
-use crate::wycheproof;
-use crate::wycheproof::{description, hex_string, CaseResult};
 use crate::TestInfo;
+use crate::wycheproof;
+use crate::wycheproof::{CaseResult, description, hex_string};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +34,7 @@ pub struct TestCase {
     pub tag: Vec<u8>,
 }
 
+#[must_use]
 pub fn generator(data: &[u8], algorithm: &str, key_size: u32) -> Vec<TestInfo> {
     let suite: TestSuite = serde_json::from_slice(data).unwrap();
     assert_eq!(algorithm, suite.suite.algorithm);

@@ -3,10 +3,15 @@ name: cpufeatures
 on:
   pull_request:
     paths:
+      - ".github/workflows/cpufeatures.yml"
       - "cpufeatures/**"
       - "Cargo.*"
   push:
     branches: master
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 defaults:
   run:
@@ -16,7 +21,17 @@ env:
   CARGO_INCREMENTAL: 0
   RUSTFLAGS: "-Dwarnings"
 
+# Cancels CI jobs when new commits are pushed to a PR branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
+  minimal-versions:
+    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
+    with:
+      working-directory: ${{ github.workflow }}
+
   # Linux tests
   linux:
     strategy:
@@ -24,7 +39,7 @@ jobs:
         include:
           # 32-bit Linux/x86
           - target: i686-unknown-linux-gnu
-            rust: 1.40.0 # MSRV
+            rust: 1.85.0 # MSRV
             deps: sudo apt update && sudo apt install gcc-multilib
           - target: i686-unknown-linux-gnu
             rust: stable
@@ -32,38 +47,36 @@ jobs:
 
           # 64-bit Linux/x86_64
           - target: x86_64-unknown-linux-gnu
-            rust: 1.40.0 # MSRV
+            rust: 1.85.0 # MSRV
           - target: x86_64-unknown-linux-gnu
             rust: stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.target }}
-          override: true
-          profile: minimal
+          targets: ${{ matrix.target }}
       - run: ${{ matrix.deps }}
-      - run: cargo test --target ${{ matrix.target }} --release
+      - run: cargo test --target ${{ matrix.target }}
 
   # macOS tests
   macos:
     strategy:
       matrix:
         toolchain:
-          - 1.40.0 # MSRV
+          - 1.85.0 # MSRV
           - stable
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.toolchain }}
-          target: x86_64-apple-darwin
-          override: true
-      - run: cargo test --release
+          targets: x86_64-apple-darwin
+      - run: cargo test
 
   # Windows tests
   windows:
@@ -71,21 +84,19 @@ jobs:
       matrix:
         include:
           # 64-bit Windows (GNU)
-          # TODO(tarcieri): try re-enabling this when we bump MSRV
-          #- target: x86_64-pc-windows-gnu
-          #  toolchain: 1.40.0 # MSRV
+          - target: x86_64-pc-windows-gnu
+            toolchain: 1.85.0 # MSRV
           - target: x86_64-pc-windows-gnu
             toolchain: stable
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
         with:
-          profile: minimal
           toolchain: ${{ matrix.toolchain }}
-          target: ${{ matrix.target }}
-          override: true
-      - run: cargo test --target ${{ matrix.target }} --release
+          targets: ${{ matrix.target }}
+      - run: cargo test --target ${{ matrix.target }}
 
   # Cross-compiled tests
   cross:
@@ -93,19 +104,29 @@ jobs:
       matrix:
         include:
           # ARM64
-          # TODO(tarcieri): try re-enabling this when we bump MSRV
-          #- target: aarch64-unknown-linux-gnu
-          #  rust: 1.40.0 # MSRV
+          - target: aarch64-unknown-linux-gnu
+            rust: 1.85.0 # MSRV
           - target: aarch64-unknown-linux-gnu
             rust: stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v7
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-          target: ${{ matrix.target }}
-          override: true
-          profile: minimal
-      - run: cargo install cross
-      - run: cross test --target ${{ matrix.target }} --release
+          targets: ${{ matrix.target }}
+      - uses: RustCrypto/actions/cross-install@master
+      - run: cross test --target ${{ matrix.target }}
+
+  # Build-only tests
+  build-only:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+      - run: rustup target add loongarch64-unknown-linux-gnu
+      - run: cargo build --target loongarch64-unknown-linux-gnu

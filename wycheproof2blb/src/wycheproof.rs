@@ -1,5 +1,6 @@
 //! Helpers for retrieving Wycheproof test vectors.
 
+use core::fmt;
 use serde::Deserialize;
 
 /// `Suite` represents the common elements of the top level object in a Wycheproof json
@@ -36,8 +37,8 @@ pub enum CaseResult {
     Acceptable,
 }
 
-impl std::fmt::Display for CaseResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for CaseResult {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{}",
@@ -111,7 +112,7 @@ pub fn data(wycheproof_dir: &str, filename: &str) -> Vec<u8> {
         .join("testvectors")
         .join(filename);
     std::fs::read(&path)
-        .unwrap_or_else(|_| panic!("Test vector file {} not found at {:?}", filename, path))
+        .unwrap_or_else(|_| panic!("Test vector file {filename} not found at {path:?}"))
 }
 
 /// Build a description for a test case in a suite

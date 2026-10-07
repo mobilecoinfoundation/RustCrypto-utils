@@ -1,6 +1,6 @@
+use crate::TestInfo;
 use crate::wycheproof;
 use crate::wycheproof::{description, hex_string};
-use crate::TestInfo;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -13,8 +13,10 @@ struct TestSuite {
 
 #[derive(Debug, Deserialize)]
 struct TestGroup {
+    #[allow(dead_code)]
     #[serde(flatten)]
     pub group: wycheproof::Group,
+    #[allow(dead_code)]
     #[serde(rename = "keySize")]
     pub key_size: u32,
     pub tests: Vec<TestCase>,
@@ -42,7 +44,7 @@ pub fn generator(data: &[u8], algorithm: &str, _key_size: u32) -> Vec<TestInfo> 
     let mut infos = vec![];
     for g in &suite.test_groups {
         for tc in &g.tests {
-            if tc.case.result != crate::wycheproof::CaseResult::Valid {
+            if tc.case.result != wycheproof::CaseResult::Valid {
                 continue;
             }
             if tc.okm.len() != tc.size {

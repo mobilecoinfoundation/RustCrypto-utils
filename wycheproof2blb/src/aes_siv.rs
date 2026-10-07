@@ -1,6 +1,6 @@
+use crate::TestInfo;
 use crate::wycheproof;
 use crate::wycheproof::{case_result, description, hex_string};
-use crate::TestInfo;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -13,6 +13,7 @@ struct TestSuite {
 
 #[derive(Debug, Deserialize)]
 struct TestGroup {
+    #[allow(dead_code)]
     #[serde(flatten)]
     pub group: wycheproof::Group,
     #[serde(rename = "keySize")]

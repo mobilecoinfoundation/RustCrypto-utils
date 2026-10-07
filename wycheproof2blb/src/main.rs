@@ -1,12 +1,18 @@
 //! Tool to convert Wycheproof test vectors to raw hex format
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/media/6ee8e381/logo.svg"
+)]
+
 use std::io::Write;
 
-mod aead;
+// `pub mod` is used to silence "field is never read" warnings
+pub mod aead;
 mod aes_siv;
 mod ecdsa;
 mod ed25519;
 mod hkdf;
-mod mac;
+pub mod mac;
 mod wycheproof;
 
 /// Test information
@@ -18,10 +24,10 @@ pub struct TestInfo {
 }
 
 /// Generator function which takes input parameters:
-///  - contents of Wycheproof test data file
-///  - algorithm name
-///  - key size (in bits) to include
-/// and returns the raw contents, together  with a list of test identifiers (one per entry).
+/// - contents of Wycheproof test data file
+/// - algorithm name
+/// - key size (in bits) to include
+///   and returns the raw contents, together  with a list of test identifiers (one per entry).
 type BlbGenerator = fn(&[u8], &str, u32) -> Vec<TestInfo>;
 
 struct Algorithm {
@@ -108,16 +114,31 @@ fn main() {
             file: "eddsa_test.json",
             generator: ed25519::generator,
         },
+        "secp224r1" => Algorithm {
+            file: "ecdsa_secp224r1_sha224_test.json",
+            generator: ecdsa::generator,
+        },
         "secp256r1" => Algorithm {
             file: "ecdsa_secp256r1_sha256_test.json",
             generator: ecdsa::generator,
         },
-        // There's also "ecdsa_secp256r1_sha256_p1363_test.json" with a different signature encoding.
         "secp256k1" => Algorithm {
             file: "ecdsa_secp256k1_sha256_test.json",
             generator: ecdsa::generator,
         },
-        _ => panic!("Unrecognized algorithm '{}'", algorithm),
+        "secp256k1-p1316" => Algorithm {
+            file: "ecdsa_secp256k1_sha256_p1363_test.json",
+            generator: ecdsa::generator,
+        },
+        "secp384r1" => Algorithm {
+            file: "ecdsa_secp384r1_sha384_test.json",
+            generator: ecdsa::generator,
+        },
+        "secp521r1" => Algorithm {
+            file: "ecdsa_secp521r1_sha512_test.json",
+            generator: ecdsa::generator,
+        },
+        _ => panic!("Unrecognized algorithm '{algorithm}'"),
     };
 
     let data = wycheproof::data(wycheproof_dir, algo.file);
@@ -131,7 +152,7 @@ fn main() {
     }
 
     let mut out_file = std::fs::File::create(out_path).unwrap();
-    let blobs: Vec<Vec<u8>> = infos.into_iter().map(|info| info.data).flatten().collect();
+    let blobs: Vec<Vec<u8>> = infos.into_iter().flat_map(|info| info.data).collect();
     let (blb_data, _) = blobby::encode_blobs(&blobs);
     out_file.write_all(&blb_data).unwrap();
 }

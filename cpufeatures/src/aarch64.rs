@@ -21,7 +21,7 @@ macro_rules! __unless_target_features {
 }
 
 // Linux runtime detection of target CPU features using `getauxval`.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __detect_target_features {
@@ -32,13 +32,13 @@ macro_rules! __detect_target_features {
 }
 
 /// Linux helper function for calling `getauxval` to get `AT_HWCAP`.
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn getauxval_hwcap() -> u64 {
     unsafe { libc::getauxval(libc::AT_HWCAP) }
 }
 
-// MacOS runtime detection of target CPU features using `sysctlbyname`.
-#[cfg(target_os = "macos")]
+// Apple platform's runtime detection of target CPU features using `sysctlbyname`.
+#[cfg(target_vendor = "apple")]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __detect_target_features {
@@ -48,7 +48,7 @@ macro_rules! __detect_target_features {
 }
 
 // Linux `expand_check_macro`
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 macro_rules! __expand_check_macro {
     ($(($name:tt, $hwcap:ident)),* $(,)?) => {
         #[macro_export]
@@ -64,11 +64,14 @@ macro_rules! __expand_check_macro {
 }
 
 // Linux `expand_check_macro`
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 __expand_check_macro! {
     ("aes",    AES),    // Enable AES support.
+    ("dit",    DIT),    // Enable Data-Independent Timing support.
     ("sha2",   SHA2),   // Enable SHA1 and SHA256 support.
     ("sha3",   SHA3),   // Enable SHA512 and SHA3 support.
+    ("sm4",    SM4),    // Enable SM3 and SM4 support.
+    ("sb",     SB),     // Enable Speculation Barrier support
 }
 
 /// Linux hardware capabilities mapped to target features.
@@ -78,16 +81,19 @@ __expand_check_macro! {
 /// provide that mapping accordingly.
 ///
 /// See this issue for more info: <https://github.com/RustCrypto/utils/issues/395>
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub mod hwcaps {
     use libc::c_ulong;
 
     pub const AES: c_ulong = libc::HWCAP_AES | libc::HWCAP_PMULL;
+    pub const DIT: c_ulong = libc::HWCAP_DIT;
     pub const SHA2: c_ulong = libc::HWCAP_SHA2;
     pub const SHA3: c_ulong = libc::HWCAP_SHA3 | libc::HWCAP_SHA512;
+    pub const SM4: c_ulong = libc::HWCAP_SM3 | libc::HWCAP_SM4;
+    pub const SB: c_ulong = libc::HWCAP_SB;
 }
 
-// macOS `check!` macro.
+// Apple OS (macOS, iOS, watchOS, and tvOS) `check!` macro.
 //
 // NOTE: several of these instructions (e.g. `aes`, `sha2`) can be assumed to
 // be present on all Apple ARM64 hardware.
@@ -98,12 +104,18 @@ pub mod hwcaps {
 //
 // See discussion on this issue for more information:
 // <https://github.com/RustCrypto/utils/issues/378>
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! check {
     ("aes") => {
         true
+    };
+    ("dit") => {
+        // https://developer.apple.com/documentation/xcode/writing-arm64-code-for-apple-platforms#Enable-DIT-for-constant-time-cryptographic-operations
+        unsafe {
+            $crate::aarch64::sysctlbyname(b"hw.optional.arm.FEAT_DIT\0")
+        }
     };
     ("sha2") => {
         true
@@ -115,10 +127,25 @@ macro_rules! check {
                 && $crate::aarch64::sysctlbyname(b"hw.optional.armv8_2_sha3\0")
         }
     };
+    ("sm4") => {
+        false
+    };
+    ("sb") => {
+        // https://support.arm.com/documentation/ddi0487/mb/-Part-B-The-AArch64-Application-Level-Architecture/-Chapter-B2-The-AArch64-Application-Level-Memory-Model/-B2-6-Memory-barriers/-B2-6-3-Speculation-Barrier
+        unsafe {
+            $crate::aarch64::sysctlbyname(b"hw.optional.arm.FEAT_SB\0")
+        }
+    };
 }
 
-/// macOS helper function for calling `sysctlbyname`.
-#[cfg(target_os = "macos")]
+/// Apple helper function for calling `sysctlbyname`.
+///
+/// <https://developer.apple.com/documentation/kernel/1387446-sysctlbyname>
+///
+/// # Panics
+/// If `name` is not NUL terminated
+#[cfg(target_vendor = "apple")]
+#[must_use]
 pub unsafe fn sysctlbyname(name: &[u8]) -> bool {
     assert_eq!(
         name.last().cloned(),
@@ -128,46 +155,33 @@ pub unsafe fn sysctlbyname(name: &[u8]) -> bool {
     );
 
     let mut value: u32 = 0;
-    let mut size = core::mem::size_of::<u32>();
+    let mut size = size_of::<u32>();
 
-    let rc = libc::sysctlbyname(
-        name.as_ptr() as *const i8,
-        &mut value as *mut _ as *mut libc::c_void,
-        &mut size,
-        core::ptr::null_mut(),
-        0,
-    );
+    // SAFETY:
+    // - `name` is being cast from a valid byte slice we asserted was NUL terminated above.
+    // - `value` is a properly-aligned, writable integer.
+    // - `size` is initialized to the size of `value` (4-bytes).
+    // - The last two arguments,`newp` and `newlen`, are for setting system parameters, which we
+    //   aren't doing here (and requires root privileges). The docs say the following:
+    //   - `newp`: "Specify NULL if you don’t want to set the attribute’s value"
+    //   - `newlen`: "Specify 0 if you don’t want to set the attribute’s value"
+    let rc = unsafe {
+        libc::sysctlbyname(
+            name.as_ptr().cast::<i8>(),
+            (&raw mut value).cast::<libc::c_void>(),
+            &raw mut size,
+            core::ptr::null_mut(),
+            0,
+        )
+    };
 
     assert_eq!(size, 4, "unexpected sysctlbyname(3) result size");
     assert_eq!(rc, 0, "sysctlbyname returned error code: {}", rc);
     value != 0
 }
 
-// iOS `check!` macro.
-//
-// Unfortunately iOS does not provide access to the `sysctl(3)` API which means
-// we can only return static values for CPU features which  can be assumed to
-// be present on all Apple ARM64 hardware.
-//
-// See discussion on this issue for more information:
-// <https://github.com/RustCrypto/utils/issues/378>
-#[cfg(target_os = "ios")]
-#[macro_export]
-#[doc(hidden)]
-macro_rules! check {
-    ("aes") => {
-        true
-    };
-    ("sha2") => {
-        true
-    };
-    ("sha3") => {
-        false
-    };
-}
-
 // On other targets, runtime CPU feature detection is unavailable
-#[cfg(not(any(target_os = "ios", target_os = "linux", target_os = "macos")))]
+#[cfg(not(any(target_vendor = "apple", target_os = "linux", target_os = "android",)))]
 #[macro_export]
 #[doc(hidden)]
 macro_rules! __detect_target_features {
